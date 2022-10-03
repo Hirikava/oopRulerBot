@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Autofac" Version="6.4.0" />
       <PackageReference Include="Discord.Net" Version="3.8.1" />
       <PackageReference Include="Vostok.Logging.Console" Version="1.0.9" />
       <PackageReference Include="Vostok.Logging.File" Version="1.0.22" />
