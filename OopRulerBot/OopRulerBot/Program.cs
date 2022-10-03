@@ -5,20 +5,25 @@ using Discord;
 using Discord.WebSocket;
 using OopRulerBot.DI;
 using OopRulerBot.Infra;
+using OopRulerBot.Settings;
+using Vostok.Configuration;
+using Vostok.Configuration.Abstractions;
+using Vostok.Configuration.Sources.Json;
 
 
 namespace OopRulerBot;
 
 public static class Program
 {
-    public const string Token = "MTAyMTM3ODQ3NjA4MDY0ODI4Mg.GwqFzN.bRrUmTfMQLYszKcnx4HA8hbeMd02Psxn0Mdmdw";
     public static async Task Main(string[] args)
     {
         var container = BotContainerBuilder.Build();
         var discordClient = new DiscordSocketClient();
         
         discordClient.Log += container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
-        await discordClient.LoginAsync(TokenType.Bot, Token);
+        var discordToken = container.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
+            .Get<BotSecretSettings>().DiscordToken;
+        await discordClient.LoginAsync(TokenType.Bot, discordToken);
         await discordClient.StartAsync();
         await Task.Delay(-1);
     }

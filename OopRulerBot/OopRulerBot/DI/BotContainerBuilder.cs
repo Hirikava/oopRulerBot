@@ -1,5 +1,9 @@
 ﻿using Autofac;
 using OopRulerBot.Infra;
+using OopRulerBot.Settings;
+using Vostok.Configuration;
+using Vostok.Configuration.Abstractions;
+using Vostok.Configuration.Sources.Json;
 using Vostok.Logging.Abstractions;
 using Vostok.Logging.Console;
 using Vostok.Logging.File;
@@ -32,6 +36,13 @@ public static class BotContainerBuilder
         containerBuilder
             .Register<IDiscordLogAdapter>(cc => new VostokDiscordLogAdapter(cc.Resolve<ILog>()))
             .SingleInstance();
+        containerBuilder
+            .Register<IConfigurationProvider>(cc =>
+            {
+                var provider = new ConfigurationProvider();
+                provider.SetupSourceFor<BotSecretSettings>(new JsonFileSource("Settings/secrets.json"));
+                return provider;
+            }).Named<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
 
         return containerBuilder.Build();
     }

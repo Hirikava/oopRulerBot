@@ -10,8 +10,17 @@
     <ItemGroup>
       <PackageReference Include="Autofac" Version="6.4.0" />
       <PackageReference Include="Discord.Net" Version="3.8.1" />
+      <PackageReference Include="Vostok.Configuration" Version="0.1.42" />
+      <PackageReference Include="Vostok.Configuration.Abstractions" Version="0.1.15" />
+      <PackageReference Include="Vostok.Configuration.Sources.Json" Version="0.1.6" />
       <PackageReference Include="Vostok.Logging.Console" Version="1.0.9" />
       <PackageReference Include="Vostok.Logging.File" Version="1.0.22" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Settings\secrets.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
 </Project>
