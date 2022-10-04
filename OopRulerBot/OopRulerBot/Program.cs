@@ -19,11 +19,14 @@ public static class Program
     public static async Task Main(string[] args)
     {
         Container = BotContainerBuilder.Build();
-        var discordClient = new DiscordSocketClient();
+        var discordClient = new DiscordSocketClient(new DiscordSocketConfig()
+        {
+            GatewayIntents = GatewayIntents.All,
+        });
 
         discordClient.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
         discordClient.MessageReceived += HandleMessage;
-        
+
         var discordToken = Container.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
             .Get<BotSecretSettings>().DiscordToken;
         await discordClient.LoginAsync(TokenType.Bot, discordToken);
