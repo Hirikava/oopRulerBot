@@ -2,13 +2,12 @@
 
 using Autofac;
 using Discord;
-using Discord.Commands;
 using Discord.WebSocket;
 using OopRulerBot.DI;
 using OopRulerBot.Infra;
 using OopRulerBot.Settings;
+using Serilog;
 using Vostok.Configuration.Abstractions;
-using Vostok.Logging.Abstractions;
 
 namespace OopRulerBot;
 
@@ -36,10 +35,10 @@ public static class Program
 
     public static Task HandleMessage(SocketMessage socketMessage)
     {
-        var message = socketMessage as SocketUserMessage;
-        if (message == null) return Task.CompletedTask;
-        var log = Container.Resolve<ILog>();
-        log.Info("{sender} says {message}", message.Author.Username, message.Content);
+        if (socketMessage is not SocketUserMessage message) 
+            return Task.CompletedTask;
+        var log = Container.Resolve<ILogger>();
+        log.Information("{sender} says {message}", message.Author.Username, message.Content);
         return Task.CompletedTask;
     }
 }
