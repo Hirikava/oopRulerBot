@@ -25,8 +25,8 @@ public static class Program
         discordClient.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
         discordClient.MessageReceived += HandleMessage;
         
-        var discordToken = "MTAyODU3NDEzOTY3MTM4NDEwNQ.GEFLoA.EVuLcBaNySKLDIWNzWl1JoGERf_wVO1H2BLDsM";
-
+        var discordToken = Container.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
+            .Get<BotSecretSettings>().DiscordToken;
         await discordClient.LoginAsync(TokenType.Bot, discordToken);
         await discordClient.StartAsync();
         await Task.Delay(-1);
