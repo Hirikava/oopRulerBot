@@ -4,5 +4,5 @@ namespace OopRulerBot.Infra;
 
 public interface IDiscordLogAdapter
 {
-   Task HandleLogEvent(LogMessage logEvent);
+   Task HandleLogEvent(LogMessage logMessage);
 }
