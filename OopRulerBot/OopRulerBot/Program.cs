@@ -7,6 +7,7 @@ using Discord.WebSocket;
 using OopRulerBot.DI;
 using OopRulerBot.Infra;
 using OopRulerBot.Settings;
+using Serilog;
 using Vostok.Configuration.Abstractions;
 using Vostok.Logging.Abstractions;
 
@@ -24,8 +25,8 @@ public static class Program
         discordClient.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
         discordClient.MessageReceived += HandleMessage;
         
-        var discordToken = Container.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
-            .Get<BotSecretSettings>().DiscordToken;
+        var discordToken = "MTAyODU3NDEzOTY3MTM4NDEwNQ.GEFLoA.EVuLcBaNySKLDIWNzWl1JoGERf_wVO1H2BLDsM";
+
         await discordClient.LoginAsync(TokenType.Bot, discordToken);
         await discordClient.StartAsync();
         await Task.Delay(-1);
@@ -35,8 +36,8 @@ public static class Program
     {
         var message = socketMessage as SocketUserMessage;
         if (message == null) return Task.CompletedTask;
-        var log = Container.Resolve<ILog>();
-        log.Info("{sender} says {message}", message.Author.Username, message.Content);
+        var log = Container.Resolve<ILogger>();
+        log.Information("{sender} says {message}", message.Author.Username, socketMessage);
         return Task.CompletedTask;
     }
 }

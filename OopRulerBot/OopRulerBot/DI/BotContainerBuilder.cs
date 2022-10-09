@@ -22,16 +22,6 @@ public static class BotContainerBuilder
                 .WriteTo.Console()
                 .WriteTo.File("log.txt", rollingInterval: RollingInterval.Day)
                 .CreateLogger();
-            /*var fileLogSettings = new FileLogSettings
-            {
-                RollingStrategy = new RollingStrategyOptions
-                {
-                    MaxFiles = 10,
-                    MaxSize = 1024 * 1024 * 100,
-                    Period = RollingPeriod.Day,
-                    Type = RollingStrategyType.Hybrid
-                }
-            };*/
             
             return consoleLog;
         }).SingleInstance();

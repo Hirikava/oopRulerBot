@@ -12,16 +12,21 @@ public class SeriDiscordLogAdapter : IDiscordLogAdapter
     private readonly ILogger _log;
     public SeriDiscordLogAdapter(ILogger log)
     {
-        _log = log.ForContext("DiscordBot", null);
+        _log = log;
 
     }
-
+    
     public Task HandleLogEvent(LogMessage logMessage)
     {
         var logLevel = GetLogLevel(logMessage.Severity);
+        var properties = new List<LogEventProperty>
+        {
+            new("msg", new ScalarValue(logMessage.Message)),
+            new("eth", new ScalarValue(logMessage.Source))
+        };
         var logEvent = new LogEvent(DateTime.UtcNow, logLevel, logMessage.Exception,  
-            new MessageTemplate(logMessage.Message, new List<MessageTemplateToken>()), 
-            new List<LogEventProperty>());
+            new MessageTemplateParser().Parse("{msg}  /  {eth}"), 
+            properties);
         _log.Write(logEvent);
         return Task.CompletedTask;
     }
