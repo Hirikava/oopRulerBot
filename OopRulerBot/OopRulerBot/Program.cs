@@ -2,14 +2,13 @@
 
 using Autofac;
 using Discord;
-using Discord.Commands;
 using Discord.WebSocket;
 using OopRulerBot.DI;
 using OopRulerBot.Infra;
 using OopRulerBot.Settings;
 using Serilog;
 using Vostok.Configuration.Abstractions;
-using Vostok.Logging.Abstractions;
+
 
 namespace OopRulerBot;
 
@@ -20,11 +19,12 @@ public static class Program
     public static async Task Main(string[] args)
     {
         Container = BotContainerBuilder.Build();
-        var discordClient = new DiscordSocketClient();
-
+        var discordClient = new DiscordSocketClient(new DiscordSocketConfig
+        {
+            GatewayIntents = GatewayIntents.All,
+        });
         discordClient.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
         discordClient.MessageReceived += HandleMessage;
-        
         var discordToken = Container.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
             .Get<BotSecretSettings>().DiscordToken;
         await discordClient.LoginAsync(TokenType.Bot, discordToken);
@@ -32,7 +32,7 @@ public static class Program
         await Task.Delay(-1);
     }
 
-    public static Task HandleMessage(SocketMessage socketMessage)
+    private static Task HandleMessage(SocketMessage socketMessage)
     {
         var message = socketMessage as SocketUserMessage;
         if (message == null) return Task.CompletedTask;
