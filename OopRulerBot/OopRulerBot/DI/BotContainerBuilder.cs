@@ -1,4 +1,7 @@
 ﻿using Autofac;
+using Discord;
+using Discord.Commands;
+using Discord.WebSocket;
 using OopRulerBot.Infra;
 using OopRulerBot.Settings;
 using Vostok.Configuration;
@@ -43,6 +46,22 @@ public static class BotContainerBuilder
                 provider.SetupSourceFor<BotSecretSettings>(new JsonFileSource("Settings/secrets.json"));
                 return provider;
             }).Named<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
+
+        containerBuilder
+            .Register(cc => new DiscordSocketClient(new DiscordSocketConfig()
+            {
+                GatewayIntents = GatewayIntents.All
+            }))
+            .SingleInstance();
+
+        containerBuilder
+            .Register(cc => new CommandService())
+            .SingleInstance();
+
+        containerBuilder
+            .Register<IDiscordMessageHandler>(cc => new DiscordMessageHandler(cc.Resolve<DiscordSocketClient>(),
+            cc.Resolve<CommandService>()))
+            .SingleInstance();
 
         return containerBuilder.Build();
     }
