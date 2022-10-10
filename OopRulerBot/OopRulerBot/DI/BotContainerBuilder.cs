@@ -1,13 +1,11 @@
 ﻿using Autofac;
 using OopRulerBot.Infra;
 using OopRulerBot.Settings;
+using Serilog;
 using Vostok.Configuration;
 using Vostok.Configuration.Abstractions;
 using Vostok.Configuration.Sources.Json;
-using Vostok.Logging.Abstractions;
-using Vostok.Logging.Console;
-using Vostok.Logging.File;
-using Vostok.Logging.File.Configuration;
+
 
 namespace OopRulerBot.DI;
 
@@ -17,25 +15,25 @@ public static class BotContainerBuilder
     {
         var containerBuilder = new ContainerBuilder();
 
-        containerBuilder.Register<ILog>(cc =>
+        containerBuilder.Register<ILogger>(cc =>
         {
-            var consoleLog = new ConsoleLog();
-            var fileLogSettings = new FileLogSettings
-            {
-                RollingStrategy = new RollingStrategyOptions
-                {
-                    MaxFiles = 10,
-                    MaxSize = 1024 * 1024 * 100,
-                    Period = RollingPeriod.Day,
-                    Type = RollingStrategyType.Hybrid
-                }
-            };
-            var fileLog = new FileLog(fileLogSettings);
-            return new CompositeLog(consoleLog, fileLog);
+            var logger = new LoggerConfiguration()
+                .WriteTo.Console()
+                .WriteTo.File(
+                    "log.txt",
+                    fileSizeLimitBytes: 1024 * 1024 * 100,
+                    retainedFileCountLimit: 10,
+                    rollingInterval: RollingInterval.Day,
+                    rollOnFileSizeLimit: true)
+                .CreateLogger();
+
+            return logger;
         }).SingleInstance();
+
         containerBuilder
-            .Register<IDiscordLogAdapter>(cc => new VostokDiscordLogAdapter(cc.Resolve<ILog>()))
+            .Register<IDiscordLogAdapter>(cc => new SerilogDiscordLogAdapter(cc.Resolve<ILogger>()))
             .SingleInstance();
+
         containerBuilder
             .Register<IConfigurationProvider>(cc =>
             {
