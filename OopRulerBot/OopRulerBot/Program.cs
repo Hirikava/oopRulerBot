@@ -2,10 +2,12 @@
 
 using System.Reflection;
 using Autofac;
+using Autofac.Extensions.DependencyInjection;
 using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using OopRulerBot.DI;
+using OopRulerBot.DisscordControllers;
 using OopRulerBot.Infra;
 using OopRulerBot.Settings;
 using Vostok.Configuration.Abstractions;
@@ -20,51 +22,31 @@ public static class Program
     public static async Task Main(string[] args)
     {
         Container = BotContainerBuilder.Build();
+        var serviceProvider = new AutofacServiceProvider(Container);
+        
 
         var discordSocketClient = Container.Resolve<DiscordSocketClient>();
         discordSocketClient.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
 
-        var discordMessageHandler = Container.Resolve<IDiscordMessageHandler>();
+        var discordMessageHandler =
+            new DiscordCommandServiceHandler(discordSocketClient, Container.Resolve<CommandService>(), serviceProvider);
         discordSocketClient.MessageReceived += discordMessageHandler.HandleMessage;
 
         var discordToken = Container
             .ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
             .Get<BotSecretSettings>().DiscordToken;
 
-        var commandService = Container.Resolve<CommandService>();
-        await commandService.AddModulesAsync(assembly: Assembly.GetEntryAssembly(), 
-            services: null);
         
+        var commandService = Container.Resolve<CommandService>();
+        await commandService.AddModulesAsync(Assembly.GetEntryAssembly(), serviceProvider);
+
+        var modules = commandService.Modules.ToList();
+        var log = Container.Resolve<ILog>();
+        foreach (var module in modules)
+            log.Info(module.Name);
+
         await discordSocketClient.LoginAsync(TokenType.Bot, discordToken);
         await discordSocketClient.StartAsync();
         await Task.Delay(-1);
-    }
-
-    public static async Task HandleMessage(SocketMessage socketMessage)
-    {
-        var discordSocketClient = Container.Resolve<DiscordSocketClient>();
-        var commandService = Container.Resolve<CommandService>();
-
-        var message = socketMessage as SocketUserMessage;
-        if (message == null) return;
-
-        // Create a number to track where the prefix ends and the command begins
-        int argPos = 0;
-
-        // Determine if the message is a command based on the prefix and make sure no bots trigger commands
-        if (!(message.HasCharPrefix('!', ref argPos) || 
-              message.HasMentionPrefix(discordSocketClient.CurrentUser, ref argPos)) ||
-            message.Author.IsBot)
-            return;
-
-        // Create a WebSocket-based command context based on the message
-        var context = new SocketCommandContext(discordSocketClient, message);
-
-        // Execute the command with the command context we just
-        // created, along with the service provider for precondition checks.
-        await commandService.ExecuteAsync(
-            context: context, 
-            argPos: argPos,
-            services: null);
     }
 }

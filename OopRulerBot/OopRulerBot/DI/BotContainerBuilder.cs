@@ -48,7 +48,7 @@ public static class BotContainerBuilder
             }).Named<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
 
         containerBuilder
-            .Register(cc => new DiscordSocketClient(new DiscordSocketConfig()
+            .Register(cc => new DiscordSocketClient(new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.All
             }))
@@ -58,10 +58,6 @@ public static class BotContainerBuilder
             .Register(cc => new CommandService())
             .SingleInstance();
 
-        containerBuilder
-            .Register<IDiscordMessageHandler>(cc => new DiscordMessageHandler(cc.Resolve<DiscordSocketClient>(),
-            cc.Resolve<CommandService>()))
-            .SingleInstance();
 
         return containerBuilder.Build();
     }

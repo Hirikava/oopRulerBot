@@ -3,15 +3,21 @@ using Discord.WebSocket;
 
 namespace OopRulerBot.Infra;
 
-public class DiscordMessageHandler : IDiscordMessageHandler
+public class DiscordCommandServiceHandler : IDiscordMessageHandler
 {
     private readonly CommandService commandService;
     private readonly DiscordSocketClient discordSocketClient;
+    private readonly IServiceProvider serviceProvider;
 
-    public DiscordMessageHandler(DiscordSocketClient discordSocketClient, CommandService commandService)
+
+    public DiscordCommandServiceHandler(
+        DiscordSocketClient discordSocketClient, 
+        CommandService commandService, 
+        IServiceProvider serviceProvider)
     {
         this.discordSocketClient = discordSocketClient;
         this.commandService = commandService;
+        this.serviceProvider = serviceProvider;
     }
 
     public async Task HandleMessage(SocketMessage socketMessage)
@@ -36,6 +42,6 @@ public class DiscordMessageHandler : IDiscordMessageHandler
         await commandService.ExecuteAsync(
             context,
             argPos,
-            null);
+            serviceProvider);
     }
 }
