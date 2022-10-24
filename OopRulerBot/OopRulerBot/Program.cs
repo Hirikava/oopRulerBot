@@ -42,7 +42,7 @@ public static class Program
 
         var commandRegistrationHelper = Container.Resolve<ICommandRegistry>();
         discordSocketClient.Ready += commandRegistrationHelper.RegisterCommandsOnReady;
-        discordSocketClient.JoinedGuild += commandRegistrationHelper.RegisterCommandOnGuildJoined;
+        discordSocketClient.JoinedGuild += commandRegistrationHelper.RegisterCommandOnJoinedServer;
 
         var discordToken = Container
             .ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
