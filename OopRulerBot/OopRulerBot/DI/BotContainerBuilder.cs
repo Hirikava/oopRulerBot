@@ -5,6 +5,8 @@ using Discord.WebSocket;
 using OopRulerBot.Infra;
 using OopRulerBot.Infra.CommandRegistration;
 using OopRulerBot.Settings;
+using OopRulerBot.Verification;
+using Telegram.Bot;
 using Vostok.Configuration;
 using Vostok.Configuration.Abstractions;
 using Vostok.Configuration.Sources.Json;
@@ -61,6 +63,24 @@ public static class BotContainerBuilder
         containerBuilder.Register<ICommandRegistry>(cc =>
                 new CommandRegistry(cc.Resolve<InteractionService>(),
                     cc.Resolve<DiscordSocketClient>()))
+            .SingleInstance();
+
+        containerBuilder.Register(cc =>
+        {
+            var configurationProvider = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
+            var secretSettings = configurationProvider.Get<BotSecretSettings>();
+            return new TelegramBotClient(secretSettings.TelegramToken);
+        }).SingleInstance();
+
+        containerBuilder.Register<IVerificationStorage>(cc => new InMemoryVerificationStorage())
+            .SingleInstance();
+        containerBuilder.Register<IVerificationTransmition>(cc => new TelegramVerificationTransmition(
+                cc.Resolve<TelegramBotClient>(),
+                cc.Resolve<ILog>()))
+            .SingleInstance();
+        containerBuilder.Register<IVerificationService>(cc => new VerificationService(
+                cc.Resolve<IVerificationTransmition>(),
+                cc.Resolve<IVerificationStorage>()))
             .SingleInstance();
     }
 }
