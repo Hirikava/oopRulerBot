@@ -33,7 +33,7 @@ public static class Program
             serviceProvider);
 
         discordSocketClient.InteractionCreated += discordInteractionHandler.Handle;
-
+        
 
 
         var interactionService = Container.Resolve<InteractionService>();
@@ -41,8 +41,8 @@ public static class Program
         interactionService.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
 
         var commandRegistrationHelper = Container.Resolve<ICommandRegistry>();
-        discordSocketClient.Ready += commandRegistrationHelper.RegisterCommandsOnExistingServers;
-        discordSocketClient.JoinedGuild += commandRegistrationHelper.RegisterCommandOnJoinedServer;
+        discordSocketClient.Ready += commandRegistrationHelper.RegisterCommandsOnReady;
+        discordSocketClient.JoinedGuild += commandRegistrationHelper.RegisterCommandOnGuildJoined;
 
         var discordToken = Container
             .ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)

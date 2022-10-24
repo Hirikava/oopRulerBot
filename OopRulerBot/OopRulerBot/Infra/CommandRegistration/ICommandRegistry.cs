@@ -1,9 +1,9 @@
 ﻿using Discord.WebSocket;
 
-namespace OopRulerBot.Infra;
+namespace OopRulerBot.Infra.CommandRegistration;
 
 public interface ICommandRegistry
 {
-    Task RegisterCommandsOnExistingServers();
-    Task RegisterCommandOnJoinedServer(SocketGuild socketGuild);
+    Task RegisterCommandsOnReady();
+    Task RegisterCommandOnGuildJoined(SocketGuild socketGuild);
 }

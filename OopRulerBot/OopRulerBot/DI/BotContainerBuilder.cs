@@ -58,9 +58,8 @@ public static class BotContainerBuilder
             .Register(cc => new InteractionService(cc.Resolve<DiscordSocketClient>()))
             .SingleInstance();
 
-        containerBuilder.Register<ICommandRegistry>(cc => new CommandRegistry(
-                cc.Resolve<DiscordSocketClient>(),
-                cc.Resolve<InteractionService>()))
+        containerBuilder.Register<ICommandRegistry>(cc =>
+                new CommandRegistry(cc.Resolve<InteractionService>()))
             .SingleInstance();
     }
 }
