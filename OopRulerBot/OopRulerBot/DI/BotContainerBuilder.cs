@@ -1,8 +1,9 @@
 ﻿using Autofac;
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
 using OopRulerBot.Infra;
+using OopRulerBot.Infra.CommandRegistration;
 using OopRulerBot.Settings;
 using Vostok.Configuration;
 using Vostok.Configuration.Abstractions;
@@ -16,10 +17,8 @@ namespace OopRulerBot.DI;
 
 public static class BotContainerBuilder
 {
-    public static IContainer Build()
+    public static void Build(ContainerBuilder containerBuilder)
     {
-        var containerBuilder = new ContainerBuilder();
-
         containerBuilder.Register<ILog>(cc =>
         {
             var consoleLog = new ConsoleLog();
@@ -36,6 +35,7 @@ public static class BotContainerBuilder
             var fileLog = new FileLog(fileLogSettings);
             return new CompositeLog(consoleLog, fileLog);
         }).SingleInstance();
+
         containerBuilder
             .Register<IDiscordLogAdapter>(cc => new VostokDiscordLogAdapter(cc.Resolve<ILog>()))
             .SingleInstance();
@@ -55,10 +55,12 @@ public static class BotContainerBuilder
             .SingleInstance();
 
         containerBuilder
-            .Register(cc => new CommandService())
+            .Register(cc => new InteractionService(cc.Resolve<DiscordSocketClient>()))
             .SingleInstance();
 
-
-        return containerBuilder.Build();
+        containerBuilder.Register<ICommandRegistry>(cc => new CommandRegistry(
+                cc.Resolve<DiscordSocketClient>(),
+                cc.Resolve<InteractionService>()))
+            .SingleInstance();
     }
 }

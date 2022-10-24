@@ -4,14 +4,14 @@ using System.Reflection;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Discord;
-using Discord.Commands;
+using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 using OopRulerBot.DI;
-using OopRulerBot.DisscordControllers;
 using OopRulerBot.Infra;
+using OopRulerBot.Infra.CommandRegistration;
 using OopRulerBot.Settings;
 using Vostok.Configuration.Abstractions;
-using Vostok.Logging.Abstractions;
 
 namespace OopRulerBot;
 
@@ -21,30 +21,33 @@ public static class Program
 
     public static async Task Main(string[] args)
     {
-        Container = BotContainerBuilder.Build();
-        var serviceProvider = new AutofacServiceProvider(Container);
-        
+        var autofacServiceProviderFactory = new AutofacServiceProviderFactory(BotContainerBuilder.Build);
+        var builder = autofacServiceProviderFactory.CreateBuilder(new ServiceCollection());
+        Container = builder.Build();
+        var serviceProvider = Container.Resolve<IServiceProvider>();
 
         var discordSocketClient = Container.Resolve<DiscordSocketClient>();
         discordSocketClient.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
+        var discordInteractionHandler = new DiscordInteractionHandler(Container.Resolve<InteractionService>(),
+            Container.Resolve<DiscordSocketClient>(),
+            serviceProvider);
 
-        var discordMessageHandler =
-            new DiscordCommandServiceHandler(discordSocketClient, Container.Resolve<CommandService>(), serviceProvider);
-        discordSocketClient.MessageReceived += discordMessageHandler.HandleMessage;
+        discordSocketClient.InteractionCreated += discordInteractionHandler.Handle;
+
+
+
+        var interactionService = Container.Resolve<InteractionService>();
+        await interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), serviceProvider);
+        interactionService.Log += Container.Resolve<IDiscordLogAdapter>().HandleLogEvent;
+
+        var commandRegistrationHelper = Container.Resolve<ICommandRegistry>();
+        discordSocketClient.Ready += commandRegistrationHelper.RegisterCommandsOnExistingServers;
+        discordSocketClient.JoinedGuild += commandRegistrationHelper.RegisterCommandOnJoinedServer;
 
         var discordToken = Container
             .ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
             .Get<BotSecretSettings>().DiscordToken;
-
         
-        var commandService = Container.Resolve<CommandService>();
-        await commandService.AddModulesAsync(Assembly.GetEntryAssembly(), serviceProvider);
-
-        var modules = commandService.Modules.ToList();
-        var log = Container.Resolve<ILog>();
-        foreach (var module in modules)
-            log.Info(module.Name);
-
         await discordSocketClient.LoginAsync(TokenType.Bot, discordToken);
         await discordSocketClient.StartAsync();
         await Task.Delay(-1);
