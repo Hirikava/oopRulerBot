@@ -20,13 +20,18 @@ public class CommandRegistry : ICommandRegistry
     public async Task RegisterCommandsOnReady()
     {
         var registrationTasks = discordSocketClient.Guilds.AsParallel()
-            .Select(async guild => await interactionService.RegisterCommandsToGuildAsync(guild.Id))
+            .Select(async guild =>
+            {
+                await guild.DeleteApplicationCommandsAsync();
+                return await interactionService.RegisterCommandsToGuildAsync(guild.Id);
+            })
             .ToArray();
         await Task.WhenAll(registrationTasks);
     }
 
     public async Task RegisterCommandOnJoinedServer(SocketGuild socketGuild)
     {
+        await socketGuild.DeleteApplicationCommandsAsync();
         await interactionService.RegisterCommandsToGuildAsync(socketGuild.Id);
     }
 }

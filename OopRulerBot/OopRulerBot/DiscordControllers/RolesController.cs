@@ -21,7 +21,8 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
 
     [SlashCommand("requestrole", "123123", runMode: RunMode.Async)]
     public async Task RequestRoleForUser(string roleName,
-        [Description("Имя пользователя должно начинаться с @")] string telegramUserName)
+        [Description("Имя пользователя должно начинаться с @")]
+        string telegramUserName)
     {
         log.Info("User:{userName} requested role with name:{roleName} on server:{serverId}",
             Context.User.Username,
@@ -31,29 +32,56 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
         var role = Context.Guild.Roles
             .FirstOrDefault(x =>
                 x.Name.Equals(roleName, StringComparison.OrdinalIgnoreCase) && x.Permissions.Administrator == false);
-
         if (role == null)
         {
             await RespondAsync("Роль не найдена или является ролью администротора", ephemeral: true);
             return;
         }
 
-        await verificationService.SendVerification(Context.Guild.Id, role.Id, Context.User.Id, telegramUserName);
+        var guildUser = (SocketGuildUser)Context.User;
+        if (guildUser.Roles.Contains(role))
+        {
+            await RespondAsync("У вас уже есть запрашиваемая роль.", ephemeral: true);
+            return;
+        }
+
+        var verificationStatus =
+            await verificationService.SendVerification(Context.Guild.Id, role.Id, Context.User.Id, telegramUserName);
+        switch (verificationStatus)
+        {
+            case SendVerificationStatus.Success:
+                await RespondAsync("Вам выслан код подтверждения", ephemeral: true);
+                break;
+            case SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild:
+                await RespondAsync("Нельзя запрашивать больше одной роли за раз, подвердите предыдущий запрос.",
+                    ephemeral: true);
+                break;
+            case SendVerificationStatus.TransportError:
+                await RespondAsync("Мы не смогли доставить вам код подтверждения.", ephemeral: true);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
     }
 
     [SlashCommand("confirmrole", "123123")]
     public async Task ConfirmRoleForUser(int verificationCode)
     {
-        var (result, role) = await verificationService.ConfirmVerification(Context.Guild.Id, Context.User.Id, verificationCode);
-        if (result)
+        var verificationResult =
+            await verificationService.ConfirmVerification(Context.Guild.Id, Context.User.Id, verificationCode);
+        switch (verificationResult.Status)
         {
-            var guildUser = (SocketGuildUser)Context.User;
-            //await guildUser.AddRoleAsync(role.Value);
-            await RespondAsync("Роль удачна выдана", ephemeral: true);
-        }
-        else
-        {
-            await RespondAsync("Код введён не верно или истёк", ephemeral: true);
+            case ConfirmVerificationStatus.TimedOut:
+            case ConfirmVerificationStatus.WrongCode:
+                await RespondAsync("Введён не верный код", ephemeral: true);
+                break;
+            case ConfirmVerificationStatus.Success:
+                var guildUser = (SocketGuildUser)Context.User;
+                await guildUser.AddRoleAsync(verificationResult.RoleId);
+                await RespondAsync("Роль выдана", ephemeral: true);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
     }
 }

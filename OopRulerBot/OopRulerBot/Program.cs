@@ -11,6 +11,7 @@ using OopRulerBot.DI;
 using OopRulerBot.Infra;
 using OopRulerBot.Infra.CommandRegistration;
 using OopRulerBot.Settings;
+using OopRulerBot.Telegram;
 using Telegram.Bot;
 using Vostok.Configuration.Abstractions;
 
@@ -53,10 +54,9 @@ public static class Program
         await discordSocketClient.StartAsync();
 
         //TODO remove later
-        var telegramClient = Container.Resolve<TelegramBotClient>();
-        var me = await telegramClient.GetMeAsync();
-        Console.WriteLine($"Hello, World! I am user {me.Id} and my name is {me.FirstName}.");
-        
+        var telegramClient = Container.Resolve<ITelegramBotClient>();
+        var telegramHandler = Container.Resolve<TelegramHandler>();
+        telegramClient.StartReceiving(telegramHandler);
         await Task.Delay(-1);
     }
 }

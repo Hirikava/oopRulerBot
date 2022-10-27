@@ -5,7 +5,10 @@ using Discord.WebSocket;
 using OopRulerBot.Infra;
 using OopRulerBot.Infra.CommandRegistration;
 using OopRulerBot.Settings;
+using OopRulerBot.Telegram;
 using OopRulerBot.Verification;
+using OopRulerBot.Verification.Storage;
+using OopRulerBot.Verification.Transport;
 using Telegram.Bot;
 using Vostok.Configuration;
 using Vostok.Configuration.Abstractions;
@@ -65,7 +68,7 @@ public static class BotContainerBuilder
                     cc.Resolve<DiscordSocketClient>()))
             .SingleInstance();
 
-        containerBuilder.Register(cc =>
+        containerBuilder.Register<ITelegramBotClient>(cc =>
         {
             var configurationProvider = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
             var secretSettings = configurationProvider.Get<BotSecretSettings>();
@@ -74,13 +77,30 @@ public static class BotContainerBuilder
 
         containerBuilder.Register<IVerificationStorage>(cc => new InMemoryVerificationStorage())
             .SingleInstance();
-        containerBuilder.Register<IVerificationTransmition>(cc => new TelegramVerificationTransmition(
-                cc.Resolve<TelegramBotClient>(),
-                cc.Resolve<ILog>()))
+
+        containerBuilder.Register<ITelegramUsersStorage>(cc => new InMemoryTelegramUserStorage())
             .SingleInstance();
+        
+        containerBuilder.Register(cc =>
+        {
+            var log = cc.Resolve<ILog>();
+            var telegramUserStorage = cc.Resolve<ITelegramUsersStorage>();
+            return new TelegramHandler(log, telegramUserStorage);
+        }).SingleInstance();
+
+        containerBuilder.Register<IVerificationTransport>(cc =>
+        {
+            var telegramBotClient = cc.Resolve<ITelegramBotClient>();
+            var telegramUsersStorage = cc.Resolve<ITelegramUsersStorage>();
+            var log = cc.Resolve<ILog>();
+            return new TelegramVerificationTransport(telegramBotClient, telegramUsersStorage, log);
+        }).SingleInstance();
+
+
         containerBuilder.Register<IVerificationService>(cc => new VerificationService(
-                cc.Resolve<IVerificationTransmition>(),
-                cc.Resolve<IVerificationStorage>()))
+                cc.Resolve<IVerificationTransport>(),
+                cc.Resolve<IVerificationStorage>(),
+                cc.Resolve<ILog>()))
             .SingleInstance();
     }
 }
