@@ -1,10 +1,9 @@
 ﻿using OopRulerBot.Telegram;
-using OopRulerBot.Verification.Transport;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Vostok.Logging.Abstractions;
 
-namespace OopRulerBot.Verification;
+namespace OopRulerBot.Verification.Transport;
 
 public class TelegramVerificationTransport : IVerificationTransport
 {
@@ -39,4 +38,6 @@ public class TelegramVerificationTransport : IVerificationTransport
             return false;
         }
     }
+
+    public string Name => "Telegram";
 }

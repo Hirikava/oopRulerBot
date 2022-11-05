@@ -1,4 +1,5 @@
 ﻿using OopRulerBot.Verification.Storage;
+using OopRulerBot.Verification.Strategies;
 using OopRulerBot.Verification.Transport;
 using Vostok.Logging.Abstractions;
 
@@ -7,16 +8,19 @@ namespace OopRulerBot.Verification;
 public class VerificationService : IVerificationService
 {
     private readonly IVerificationStorage verificationStorage;
-    private readonly IVerificationTransport verificationTransport;
+    private readonly IVerificationStrategy verificationStrategy;
+    private readonly IVerificationTransport[] verificationTransport;
     private readonly ILog log;
 
     public VerificationService(
-        IVerificationTransport verificationTransport,
+        IVerificationTransport[] verificationTransport,
         IVerificationStorage verificationStorage,
+        IVerificationStrategy verificationStrategy,
         ILog log)
     {
         this.verificationTransport = verificationTransport;
         this.verificationStorage = verificationStorage;
+        this.verificationStrategy = verificationStrategy;
         this.log = log;
     }
 
@@ -24,13 +28,13 @@ public class VerificationService : IVerificationService
         ulong discordGuildId, 
         ulong discordRoleId, 
         ulong discordUserId,
-        string identifier)
+        IReadOnlyDictionary<string, string> identifiers)
     {
         var verificationCode = CreateVerificationCode();
         var saveResult = await verificationStorage.AddVerificationCode(discordGuildId, discordRoleId, discordUserId, verificationCode, TimeSpan.FromMinutes(3));
         if (!saveResult)
-            return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild; 
-        var sendVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
+            return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild;
+        var sendVerificationResult = await verificationStrategy.SendAsync(verificationTransport, identifiers, verificationCode);
         if (!sendVerificationResult)
             await verificationStorage.DeleteVerificationCode(discordGuildId, discordUserId);
         return sendVerificationResult ? SendVerificationStatus.Success : SendVerificationStatus.TransportError;
