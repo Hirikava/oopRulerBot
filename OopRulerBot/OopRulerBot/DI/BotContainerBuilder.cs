@@ -8,6 +8,7 @@ using OopRulerBot.Settings;
 using OopRulerBot.Telegram;
 using OopRulerBot.Verification;
 using OopRulerBot.Verification.Storage;
+using OopRulerBot.Verification.Strategies;
 using OopRulerBot.Verification.Transport;
 using Telegram.Bot;
 using Vostok.Configuration;
@@ -98,9 +99,18 @@ public static class BotContainerBuilder
 
 
         containerBuilder.Register<IVerificationService>(cc => new VerificationService(
-                cc.Resolve<IVerificationTransport>(),
+                cc.Resolve<IVerificationTransport[]>(),
                 cc.Resolve<IVerificationStorage>(),
+                new SequentialStrategy(),
                 cc.Resolve<ILog>()))
             .SingleInstance();
+
+        containerBuilder.Register<IVerificationTransport>(cc =>
+        {
+            var log = cc.Resolve<ILog>();
+            var settings = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
+                .Get<BotSecretSettings>().SmtpClientSettings;
+            return new SmtpVerificationTransport(log, settings);
+        }).SingleInstance();
     }
 }

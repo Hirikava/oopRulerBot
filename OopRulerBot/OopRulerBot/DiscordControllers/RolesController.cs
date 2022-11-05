@@ -22,12 +22,18 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("requestrole", "123123", runMode: RunMode.Async)]
     public async Task RequestRoleForUser(string roleName,
         [Description("Имя пользователя должно начинаться с @")]
-        string telegramUserName)
+        string? telegramUserName = null,
+        string? email = null)
     {
         log.Info("User:{userName} requested role with name:{roleName} on server:{serverId}",
             Context.User.Username,
             roleName,
             Context.Guild.Id);
+        if (telegramUserName is null && email is null)
+        {
+            await RespondAsync("Нужен хотя бы один идентификатор", ephemeral: true);
+            return;
+        }
 
         var role = Context.Guild.Roles
             .FirstOrDefault(x =>
@@ -45,19 +51,25 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
             return;
         }
 
+        await DeferAsync(ephemeral: true);
+        var identifiers = new Dictionary<string, string>(2);
+        if (telegramUserName is not null)
+            identifiers["Telegram"] = telegramUserName;
+        if (email is not null)
+            identifiers["Mail"] = email;
         var verificationStatus =
-            await verificationService.SendVerification(Context.Guild.Id, role.Id, Context.User.Id, telegramUserName);
+            await verificationService.SendVerification(Context.Guild.Id, role.Id, Context.User.Id, identifiers);
         switch (verificationStatus)
         {
             case SendVerificationStatus.Success:
-                await RespondAsync("Вам выслан код подтверждения", ephemeral: true);
+                await FollowupAsync("Вам выслан код подтверждения", ephemeral: true);
                 break;
             case SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild:
-                await RespondAsync("Нельзя запрашивать больше одной роли за раз, подвердите предыдущий запрос.",
+                await FollowupAsync("Нельзя запрашивать больше одной роли за раз, подвердите предыдущий запрос.",
                     ephemeral: true);
                 break;
             case SendVerificationStatus.TransportError:
-                await RespondAsync("Мы не смогли доставить вам код подтверждения.", ephemeral: true);
+                await FollowupAsync("Мы не смогли доставить вам код подтверждения.", ephemeral: true);
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
