@@ -7,15 +7,15 @@ namespace OopRulerBot.Verification;
 public class VerificationService : IVerificationService
 {
     private readonly IVerificationStorage verificationStorage;
-    private readonly IVerificationTransport verificationTransport;
+    private readonly IEnumerable<IVerificationTransport> verificationTransports;
     private readonly ILog log;
 
     public VerificationService(
-        IVerificationTransport verificationTransport,
+        IEnumerable<IVerificationTransport> verificationTransports,
         IVerificationStorage verificationStorage,
         ILog log)
     {
-        this.verificationTransport = verificationTransport;
+        this.verificationTransports = verificationTransports;
         this.verificationStorage = verificationStorage;
         this.log = log;
     }
@@ -29,8 +29,8 @@ public class VerificationService : IVerificationService
         var verificationCode = CreateVerificationCode();
         var saveResult = await verificationStorage.AddVerificationCode(discordGuildId, discordRoleId, discordUserId, verificationCode, TimeSpan.FromMinutes(3));
         if (!saveResult)
-            return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild; 
-        var sendVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
+            return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild;
+        var sendVerificationResult = await SendVerification(identifier, verificationCode);
         if (!sendVerificationResult)
             await verificationStorage.DeleteVerificationCode(discordGuildId, discordUserId);
         return sendVerificationResult ? SendVerificationStatus.Success : SendVerificationStatus.TransportError;
@@ -68,5 +68,18 @@ public class VerificationService : IVerificationService
     {
         var random = new Random();
         return random.Next(1, 999999);
+    }
+    
+    private async Task<bool> SendVerification(string identifier, int verificationCode)
+    {
+        foreach (var verificationTransport in verificationTransports)
+        {
+            var sendVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
+            
+            if (sendVerificationResult)
+                return true;
+        }
+
+        return false;
     }
 }

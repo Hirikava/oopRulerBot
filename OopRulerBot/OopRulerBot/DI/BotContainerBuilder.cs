@@ -1,4 +1,6 @@
-﻿using Autofac;
+﻿using System.Net;
+using System.Net.Mail;
+using Autofac;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -53,6 +55,14 @@ public static class BotContainerBuilder
             }).Named<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
 
         containerBuilder
+            .Register<IConfigurationProvider>(_ =>
+            {
+                var provider = new ConfigurationProvider();
+                provider.SetupSourceFor<SmtpSettings>(new JsonFileSource("Settings/secrets.json"));
+                return provider;
+            }).Named<IConfigurationProvider>(ConfigurationScopes.SmtpSettings);
+
+        containerBuilder
             .Register(cc => new DiscordSocketClient(new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.All
@@ -98,9 +108,30 @@ public static class BotContainerBuilder
 
 
         containerBuilder.Register<IVerificationService>(cc => new VerificationService(
-                cc.Resolve<IVerificationTransport>(),
+                cc.Resolve<IEnumerable<IVerificationTransport>>(),
                 cc.Resolve<IVerificationStorage>(),
                 cc.Resolve<ILog>()))
             .SingleInstance();
+        
+        containerBuilder.Register(cc =>
+        {
+            var configurationProvider = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.SmtpSettings);
+            var smtpSettings = configurationProvider.Get<SmtpSettings>();
+            var client = new SmtpClient(smtpSettings.Host, smtpSettings.Port)
+            {
+                Credentials = new NetworkCredential(smtpSettings.Email, smtpSettings.Password),
+                EnableSsl = true
+            };
+            return client;
+        });
+
+        containerBuilder.Register<IVerificationTransport>(cc =>
+        {
+            var configurationProvider = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.SmtpSettings);
+            var smtpSettings = configurationProvider.Get<SmtpSettings>();
+            var client = cc.Resolve<SmtpClient>();
+            var mailAddress = new MailAddress(smtpSettings.Email);
+            return new SmtpVerificationTransport(cc.Resolve<ILog>(), client, mailAddress);
+        }).SingleInstance();
     }
 }

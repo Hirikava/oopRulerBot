@@ -3,4 +3,5 @@
 public static class ConfigurationScopes
 {
     public static string BotSettingsScope = "BotSettings";
+    public static string SmtpSettings = "SmtpSettings";
 }
