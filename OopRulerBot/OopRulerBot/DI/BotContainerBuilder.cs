@@ -9,6 +9,8 @@ using OopRulerBot.Infra.CommandRegistration;
 using OopRulerBot.Settings;
 using OopRulerBot.Telegram;
 using OopRulerBot.Verification;
+using OopRulerBot.Verification.Sender;
+using OopRulerBot.Verification.Sender.Strategies;
 using OopRulerBot.Verification.Storage;
 using OopRulerBot.Verification.Transport;
 using Telegram.Bot;
@@ -63,6 +65,14 @@ public static class BotContainerBuilder
             }).Named<IConfigurationProvider>(ConfigurationScopes.SmtpSettings);
 
         containerBuilder
+            .Register<IConfigurationProvider>(_ =>
+            {
+                var provider = new ConfigurationProvider();
+                provider.SetupSourceFor<VerificationSenderSettings>(new JsonFileSource("Settings/secrets.json"));
+                return provider;
+            }).Named<IConfigurationProvider>(ConfigurationScopes.VerificationSenderSettings);
+
+        containerBuilder
             .Register(cc => new DiscordSocketClient(new DiscordSocketConfig
             {
                 GatewayIntents = GatewayIntents.All
@@ -108,11 +118,11 @@ public static class BotContainerBuilder
 
 
         containerBuilder.Register<IVerificationService>(cc => new VerificationService(
-                cc.Resolve<IEnumerable<IVerificationTransport>>(),
-                cc.Resolve<IVerificationStorage>(),
-                cc.Resolve<ILog>()))
-            .SingleInstance();
-        
+                            cc.Resolve<IVerificationSender>(),
+                            cc.Resolve<IVerificationStorage>(),
+                            cc.Resolve<ILog>()))
+                        .SingleInstance();
+
         containerBuilder.Register(cc =>
         {
             var configurationProvider = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.SmtpSettings);
@@ -133,5 +143,28 @@ public static class BotContainerBuilder
             var mailAddress = new MailAddress(smtpSettings.Email);
             return new SmtpVerificationTransport(cc.Resolve<ILog>(), client, mailAddress);
         }).SingleInstance();
+
+        containerBuilder.Register<IVerificationSender>(cc =>
+        {
+            var configurationProvider =
+                cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.VerificationSenderSettings);
+            
+            var settings = configurationProvider.Get<VerificationSenderSettings>();
+            var strategy = cc.ResolveKeyed<IVerificationSendingStrategy>(settings.Strategy);
+            
+            return new VerificationSender(cc.Resolve<ILog>(), strategy);
+        });
+
+        containerBuilder.Register<IVerificationSendingStrategy>(cc => new ChainVerificationSendingStrategy(
+                            cc.Resolve<ILog>(),
+                            cc.Resolve<IEnumerable<IVerificationTransport>>()))
+                        .SingleInstance()
+                        .Keyed<IVerificationSendingStrategy>(VerificationSendingStrategyType.Chain);
+        
+        containerBuilder.Register<IVerificationSendingStrategy>(cc => new ParallelVerificationSendingStrategy(
+                            cc.Resolve<ILog>(),
+                            cc.Resolve<IEnumerable<IVerificationTransport>>()))
+                        .SingleInstance()
+                        .Keyed<IVerificationSendingStrategy>(VerificationSendingStrategyType.Parallel);
     }
 }

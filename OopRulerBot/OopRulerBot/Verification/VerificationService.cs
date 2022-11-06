@@ -1,21 +1,21 @@
-﻿using OopRulerBot.Verification.Storage;
-using OopRulerBot.Verification.Transport;
+﻿using OopRulerBot.Verification.Sender;
+using OopRulerBot.Verification.Storage;
 using Vostok.Logging.Abstractions;
 
 namespace OopRulerBot.Verification;
 
 public class VerificationService : IVerificationService
 {
+    private readonly IVerificationSender verificationSender;
     private readonly IVerificationStorage verificationStorage;
-    private readonly IEnumerable<IVerificationTransport> verificationTransports;
     private readonly ILog log;
 
     public VerificationService(
-        IEnumerable<IVerificationTransport> verificationTransports,
+        IVerificationSender verificationSender,
         IVerificationStorage verificationStorage,
         ILog log)
     {
-        this.verificationTransports = verificationTransports;
+        this.verificationSender = verificationSender;
         this.verificationStorage = verificationStorage;
         this.log = log;
     }
@@ -30,7 +30,7 @@ public class VerificationService : IVerificationService
         var saveResult = await verificationStorage.AddVerificationCode(discordGuildId, discordRoleId, discordUserId, verificationCode, TimeSpan.FromMinutes(3));
         if (!saveResult)
             return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild;
-        var sendVerificationResult = await SendVerification(identifier, verificationCode);
+        var sendVerificationResult = await verificationSender.SendVerification(identifier, verificationCode);
         if (!sendVerificationResult)
             await verificationStorage.DeleteVerificationCode(discordGuildId, discordUserId);
         return sendVerificationResult ? SendVerificationStatus.Success : SendVerificationStatus.TransportError;
@@ -68,18 +68,5 @@ public class VerificationService : IVerificationService
     {
         var random = new Random();
         return random.Next(1, 999999);
-    }
-    
-    private async Task<bool> SendVerification(string identifier, int verificationCode)
-    {
-        foreach (var verificationTransport in verificationTransports)
-        {
-            var sendVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
-            
-            if (sendVerificationResult)
-                return true;
-        }
-
-        return false;
     }
 }
