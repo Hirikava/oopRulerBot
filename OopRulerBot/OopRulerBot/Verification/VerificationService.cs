@@ -1,21 +1,21 @@
-﻿using OopRulerBot.Verification.Storage;
-using OopRulerBot.Verification.Transport;
+﻿using OopRulerBot.Verification.Sender;
+using OopRulerBot.Verification.Storage;
 using Vostok.Logging.Abstractions;
 
 namespace OopRulerBot.Verification;
 
 public class VerificationService : IVerificationService
 {
+    private readonly IVerificationSender verificationSender;
     private readonly IVerificationStorage verificationStorage;
-    private readonly IVerificationTransport verificationTransport;
     private readonly ILog log;
 
     public VerificationService(
-        IVerificationTransport verificationTransport,
+        IVerificationSender verificationSender,
         IVerificationStorage verificationStorage,
         ILog log)
     {
-        this.verificationTransport = verificationTransport;
+        this.verificationSender = verificationSender;
         this.verificationStorage = verificationStorage;
         this.log = log;
     }
@@ -29,8 +29,8 @@ public class VerificationService : IVerificationService
         var verificationCode = CreateVerificationCode();
         var saveResult = await verificationStorage.AddVerificationCode(discordGuildId, discordRoleId, discordUserId, verificationCode, TimeSpan.FromMinutes(3));
         if (!saveResult)
-            return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild; 
-        var sendVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
+            return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild;
+        var sendVerificationResult = await verificationSender.SendVerification(identifier, verificationCode);
         if (!sendVerificationResult)
             await verificationStorage.DeleteVerificationCode(discordGuildId, discordUserId);
         return sendVerificationResult ? SendVerificationStatus.Success : SendVerificationStatus.TransportError;
