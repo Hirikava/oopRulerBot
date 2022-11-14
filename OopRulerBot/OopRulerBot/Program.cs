@@ -1,5 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
+using System.Net;
+using System.Net.Mail;
 using System.Reflection;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
@@ -35,7 +37,6 @@ public static class Program
             serviceProvider);
 
         discordSocketClient.InteractionCreated += discordInteractionHandler.Handle;
-        
 
 
         var interactionService = Container.Resolve<InteractionService>();
@@ -49,7 +50,7 @@ public static class Program
         var discordToken = Container
             .ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope)
             .Get<BotSecretSettings>().DiscordToken;
-        
+
         await discordSocketClient.LoginAsync(TokenType.Bot, discordToken);
         await discordSocketClient.StartAsync();
 
