@@ -1,5 +1,6 @@
-﻿using OopRulerBot.Verification.Storage;
-using OopRulerBot.Verification.Transport;
+﻿using OopRulerBot.Verification.SmtpTransport;
+using OopRulerBot.Verification.Storage;
+using OopRulerBot.Verification.TelegramTransport;
 using Vostok.Logging.Abstractions;
 
 namespace OopRulerBot.Verification;
@@ -9,31 +10,35 @@ public class VerificationService : IVerificationService
     private readonly IVerificationStorage verificationStorage;
     private readonly IVerificationTransport verificationTransport;
     private readonly ILog log;
+    private readonly ISmtpTransport smtpTransport;
 
     public VerificationService(
         IVerificationTransport verificationTransport,
         IVerificationStorage verificationStorage,
-        ILog log)
+        ILog log, ISmtpTransport smtpTransport)
     {
         this.verificationTransport = verificationTransport;
         this.verificationStorage = verificationStorage;
         this.log = log;
+        this.smtpTransport = smtpTransport;
     }
 
     public async Task<SendVerificationStatus> SendVerification(
         ulong discordGuildId, 
         ulong discordRoleId, 
         ulong discordUserId,
-        string identifier)
+        string identifier,
+        string email)
     {
         var verificationCode = CreateVerificationCode();
         var saveResult = await verificationStorage.AddVerificationCode(discordGuildId, discordRoleId, discordUserId, verificationCode, TimeSpan.FromMinutes(3));
         if (!saveResult)
             return SendVerificationStatus.UserAlreadyHasAnotherVerificationOnCurrentGuild; 
-        var sendVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
-        if (!sendVerificationResult)
+        var sendTelegramVerificationResult = await verificationTransport.SendVerificationCode(identifier, verificationCode);
+        var sendSmtpVerificationResult = await smtpTransport.SendVerificationCode(email, verificationCode);
+        if (!sendTelegramVerificationResult && !sendSmtpVerificationResult)
             await verificationStorage.DeleteVerificationCode(discordGuildId, discordUserId);
-        return sendVerificationResult ? SendVerificationStatus.Success : SendVerificationStatus.TransportError;
+        return sendTelegramVerificationResult || sendSmtpVerificationResult ? SendVerificationStatus.Success : SendVerificationStatus.TransportError;
     }
 
     public async Task<VerificationResult> ConfirmVerification(

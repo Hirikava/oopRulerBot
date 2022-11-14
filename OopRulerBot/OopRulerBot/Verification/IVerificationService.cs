@@ -25,7 +25,7 @@ public class VerificationResult
 
 public interface IVerificationService
 {
-    Task<SendVerificationStatus> SendVerification(ulong discordGuildId, ulong discordRoleId, ulong discordUserId, string identifier);
+    Task<SendVerificationStatus> SendVerification(ulong discordGuildId, ulong discordRoleId, ulong discordUserId, string identifier, string email);
     Task<VerificationResult> ConfirmVerification(ulong discordGuildId, ulong discordUserId, int verificationCode);
     Task<bool> CancelVerification(ulong discordGuildId, ulong discordUserId);
 }

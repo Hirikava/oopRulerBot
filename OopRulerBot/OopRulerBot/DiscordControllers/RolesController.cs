@@ -22,7 +22,7 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
     [SlashCommand("requestrole", "123123", runMode: RunMode.Async)]
     public async Task RequestRoleForUser(string roleName,
         [Description("Имя пользователя должно начинаться с @")]
-        string telegramUserName)
+        string telegramUserName,[Description("Email")] string email)
     {
         log.Info("User:{userName} requested role with name:{roleName} on server:{serverId}",
             Context.User.Username,
@@ -46,7 +46,7 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
         }
 
         var verificationStatus =
-            await verificationService.SendVerification(Context.Guild.Id, role.Id, Context.User.Id, telegramUserName);
+            await verificationService.SendVerification(Context.Guild.Id, role.Id, Context.User.Id, telegramUserName, email);
         switch (verificationStatus)
         {
             case SendVerificationStatus.Success:
@@ -79,6 +79,9 @@ public class RolesController : InteractionModuleBase<SocketInteractionContext>
                 var guildUser = (SocketGuildUser)Context.User;
                 await guildUser.AddRoleAsync(verificationResult.RoleId);
                 await RespondAsync("Роль выдана", ephemeral: true);
+                log.Info("User:{userName} successfully confirmed request for role on server:{serverId}",
+                    Context.User.Username,
+                    Context.Guild.Id);
                 break;
             default:
                 throw new ArgumentOutOfRangeException();

@@ -1,10 +1,9 @@
 ﻿using OopRulerBot.Telegram;
-using OopRulerBot.Verification.Transport;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Vostok.Logging.Abstractions;
 
-namespace OopRulerBot.Verification;
+namespace OopRulerBot.Verification.TelegramTransport;
 
 public class TelegramVerificationTransport : IVerificationTransport
 {

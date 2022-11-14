@@ -1,4 +1,4 @@
-﻿namespace OopRulerBot.Verification.Transport;
+﻿namespace OopRulerBot.Verification.TelegramTransport;
 
 public interface IVerificationTransport
 {

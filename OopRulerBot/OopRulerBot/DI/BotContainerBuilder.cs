@@ -1,4 +1,5 @@
-﻿using Autofac;
+﻿using System.Net;
+using Autofac;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -8,7 +9,7 @@ using OopRulerBot.Settings;
 using OopRulerBot.Telegram;
 using OopRulerBot.Verification;
 using OopRulerBot.Verification.Storage;
-using OopRulerBot.Verification.Transport;
+using OopRulerBot.Verification.TelegramTransport;
 using Telegram.Bot;
 using Vostok.Configuration;
 using Vostok.Configuration.Abstractions;
@@ -17,6 +18,8 @@ using Vostok.Logging.Abstractions;
 using Vostok.Logging.Console;
 using Vostok.Logging.File;
 using Vostok.Logging.File.Configuration;
+using System.Net.Mail;
+using OopRulerBot.Verification.SmtpTransport;
 
 namespace OopRulerBot.DI;
 
@@ -75,12 +78,29 @@ public static class BotContainerBuilder
             return new TelegramBotClient(secretSettings.TelegramToken);
         }).SingleInstance();
 
+        containerBuilder.Register<SmtpClient>(cc =>
+        {
+            var configurationProvider = cc.ResolveNamed<IConfigurationProvider>(ConfigurationScopes.BotSettingsScope);
+            var secretSettings = configurationProvider.Get<BotSecretSettings>();
+            var client = new SmtpClient(secretSettings.SmtpHost, Convert.ToInt32(secretSettings.SmtpPort));
+            client.Credentials = new NetworkCredential(secretSettings.SmtpLogin, secretSettings.SmtpPassword);
+            client.EnableSsl = true;
+            return client;
+        }).SingleInstance();
+
+        containerBuilder.Register<ISmtpTransport>(cc =>
+        {
+            var smtpClient = cc.Resolve<SmtpClient>();
+            var log = cc.Resolve<ILog>();
+            return new SmtpVerificationTransport(log, smtpClient);
+        }).SingleInstance();
+
         containerBuilder.Register<IVerificationStorage>(cc => new InMemoryVerificationStorage())
             .SingleInstance();
 
         containerBuilder.Register<ITelegramUsersStorage>(cc => new InMemoryTelegramUserStorage())
             .SingleInstance();
-        
+
         containerBuilder.Register(cc =>
         {
             var log = cc.Resolve<ILog>();
@@ -100,7 +120,8 @@ public static class BotContainerBuilder
         containerBuilder.Register<IVerificationService>(cc => new VerificationService(
                 cc.Resolve<IVerificationTransport>(),
                 cc.Resolve<IVerificationStorage>(),
-                cc.Resolve<ILog>()))
+                cc.Resolve<ILog>(),
+                cc.Resolve<ISmtpTransport>()))
             .SingleInstance();
     }
 }
